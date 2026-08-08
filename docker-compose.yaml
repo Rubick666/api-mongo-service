@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mongo_catalog
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: catalog_db
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build: .
+    container_name: api_mongo_service
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://root:example@mongodb:27017
+      - MONGO_DB_NAME=catalog_db
+      - APP_ENV=development
+    volumes:
+      - .:/app   # mount source for hot reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  mongo_data:
