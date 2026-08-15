@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from app.core.config import settings
 from app.models.product import Product
-from app.routers import products
+from app.routers import product
 
 app = FastAPI(
     title="Product Catalog API",
@@ -28,4 +28,4 @@ async def health():
     return {"status": "ok", "service": "api-mongo-service"}
 
 # Include the products router
-app.include_router(products.router, prefix="/products", tags=["products"])
+app.include_router(product.router, prefix="/products", tags=["products"])
