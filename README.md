@@ -41,3 +41,22 @@ Without these indexes, MongoDB would perform a collection scan for every request
 
 **Future optimisation:**  
 If attribute filtering becomes a bottleneck, we can add a wildcard index on `attributes` or specific keys (`attributes.material`, `attributes.voltage`) – but for now, the flexible schema works well without over‑indexing.
+
+## Authentication & Authorization
+
+The API uses **JWT (Bearer token)** authentication. Two roles exist:
+- `admin` – full access (can import bulk data, delete/modify products).
+- `readonly` – can only list and search (the default role).
+
+**Get a token:**
+
+```bash
+# Register (first user becomes admin)
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@test.com", "password": "password123"}'
+
+# Login
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@test.com", "password": "password123"}'
