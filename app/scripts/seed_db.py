@@ -2,7 +2,7 @@ import asyncio
 import random
 from datetime import datetime
 
-from motor.motor_asyncio import AsyncIOMotorClient
+from pymongo import AsyncMongoClient
 from beanie import init_beanie
 
 from app.core.config import settings
@@ -136,7 +136,7 @@ for i in range(10):
 
 async def seed():
     print("Connecting to MongoDB...")
-    client = AsyncIOMotorClient(settings.mongo_uri)
+    client = AsyncMongoClient(settings.mongo_uri)
     await init_beanie(
         database=client[settings.mongo_db_name],
         document_models=[Product],
@@ -151,10 +151,6 @@ async def seed():
     products = [Product(**data) for data in SAMPLE_PRODUCTS]
     await Product.insert_many(products)
     print(f"Seeded {len(products)} products.")
-    
-    # Create text index for full‑text search (preparing for Step 3)
-    await Product.create_indexes()
-    print("Text index created.")
 
 if __name__ == "__main__":
     asyncio.run(seed())
