@@ -1,10 +1,9 @@
 # app/routers/auth.py
-from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from slowapi import Limiter
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, EmailStr, Field
+from app.core.limiter import limiter
 
 from app.core.security import (
     create_access_token,
@@ -37,7 +36,10 @@ class UserResponse(BaseModel):
 # ---------- Endpoints ----------
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 @limiter.limit("5/minute")
-async def register_user(user_data: UserRegister):
+async def register_user(
+    request: Request,
+    user_data: UserRegister,
+):
     """Register a new user. The first user ever registered becomes an admin."""
     
     # 1. Check if the email already exists
@@ -69,7 +71,10 @@ async def register_user(user_data: UserRegister):
 
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit("5/minute")
-async def login_user(creds: UserLogin):
+async def login_user(
+    request: Request,
+    creds: UserLogin,
+):
     """Authenticate and receive a JWT access token."""
     # 1. Find user by email
     user = await User.find_one(User.email == creds.email)

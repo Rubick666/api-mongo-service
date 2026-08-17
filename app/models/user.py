@@ -1,8 +1,8 @@
 from typing import Optional
 
-from beanie import Document, IndexModel
+from beanie import Document
 from pydantic import EmailStr, Field
-from pymongo import ASCENDING
+from pymongo import ASCENDING, IndexModel
 
 class User(Document):
     """User model for authentication and role-based access."""
