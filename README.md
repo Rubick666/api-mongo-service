@@ -85,3 +85,40 @@ curl -X POST http://localhost:8000/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email": "admin@test.com", "password": "password123"}'
 ```
+
+## Feature Checklist
+
+* ✅ JWT authentication with role-based access (`admin` vs `readonly`)
+* ✅ MongoDB schema validation (JSON Schema) at the collection level
+* ✅ Text index and compound indexes, with this README explaining why each exists
+* ✅ Aggregation pipeline endpoints:
+
+  * `/products/analytics/categories`
+  * `/products/analytics/price-distribution`
+* ✅ Rate-limiting middleware:
+
+  * Authentication: 5 requests/minute
+  * Search: 100 requests/minute
+  * Import: 10 requests/minute
+* ✅ `pytest` test suite with a dedicated test database
+* ✅ Bulk import endpoint supporting CSV/JSONL streaming
+* ✅ Soft-delete and versioning with automatic `updated_at` updates
+
+## API Endpoints
+
+The following table provides the complete list of available API endpoints.
+
+| Method   | Endpoint                                 | Description                                           | Auth  |
+| -------- | ---------------------------------------- | ----------------------------------------------------- | ----- |
+| `GET`    | `/health`                                | Service health check                                  | None  |
+| `GET`    | `/products`                              | List active products (paginated)                      | None  |
+| `POST`   | `/products/search`                       | Rich search with text, filters, price, and attributes | None  |
+| `GET`    | `/products/{id}`                         | Fetch a single product                                | None  |
+| `PATCH`  | `/products/{id}`                         | Update a product                                      | Admin |
+| `DELETE` | `/products/{id}`                         | Soft-delete a product                                 | Admin |
+| `POST`   | `/products/bulk-import`                  | Bulk import CSV/JSONL                                 | Admin |
+| `GET`    | `/products/analytics/categories`         | Count products per category                           | None  |
+| `GET`    | `/products/analytics/price-distribution` | Price histogram with dynamic buckets                  | None  |
+| `POST`   | `/auth/register`                         | Register a new user                                   | None  |
+| `POST`   | `/auth/login`                            | Login and obtain a JWT                                | None  |
+| `GET`    | `/auth/me`                               | Get current user information                          | User  |
