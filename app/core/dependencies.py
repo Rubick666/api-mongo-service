@@ -48,6 +48,5 @@ async def require_admin(current_user: Annotated[User, Depends(get_current_user)]
         )
     return current_user
 
-# Usage shortcuts for endpoints:
-# CurrentUser = Annotated[User, Depends(get_current_user)]
-# AdminUser = Annotated[User, Depends(require_admin)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+AdminUser = Annotated[User, Depends(require_admin)]

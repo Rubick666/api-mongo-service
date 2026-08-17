@@ -8,6 +8,15 @@ from app.schemas.product_search import ProductSearchRequest
 from slowapi import Limiter
 from fastapi import Request
 
+from beanie import PydanticObjectId
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from pydantic import BaseModel, Field
+from datetime import datetime
+
+from app.core.dependencies import AdminUser, require_admin
+from app.models.product import Product
+from app.schemas.product_create import ProductCreate
+
 router = APIRouter()
 
 @router.get("/", response_model=List[Product])
@@ -158,3 +167,169 @@ async def bulk_import(
         "total_rows_processed": line_number - 1,  # minus 1 because we started at 1
         "errors": errors,
     }
+
+@router.get("/{product_id}", response_model=Product)
+async def get_product(product_id: str):
+    """
+    Fetch a single product by its MongoDB ObjectId.
+    Returns 404 if the product does not exist or is soft-deleted.
+    """
+    if not PydanticObjectId.is_valid(product_id):
+        raise HTTPException(status_code=400, detail="Invalid product ID format")
+    
+    product = await Product.get(PydanticObjectId(product_id))
+    if not product or not product.is_active:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return product
+
+
+class ProductUpdate(BaseModel):
+    """Schema for updating a product (all fields optional)."""
+    name: Optional[str] = Field(None, min_length=1)
+    description: Optional[str] = None
+    price: Optional[float] = Field(None, gt=0)
+    category: Optional[str] = Field(None, min_length=1)
+    brand: Optional[str] = Field(None, min_length=1)
+    inventory_count: Optional[int] = Field(None, ge=0)
+    image_urls: Optional[List[str]] = None
+    attributes: Optional[Dict[str, Any]] = None
+    is_active: Optional[bool] = None
+
+
+@router.patch("/{product_id}", response_model=Product)
+async def update_product(
+    product_id: str,
+    updates: ProductUpdate,
+    admin_user: AdminUser = Depends(require_admin),  # only admins can update
+):
+    """
+    Update a product's fields. All fields are optional.
+    Triggers a version update (sets updated_at to now).
+    """
+    if not PydanticObjectId.is_valid(product_id):
+        raise HTTPException(status_code=400, detail="Invalid product ID format")
+    
+    product = await Product.get(PydanticObjectId(product_id))
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Convert updates to a dict, excluding None values
+    update_data = {k: v for k, v in updates.dict(exclude_unset=True).items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="No valid fields to update")
+    
+    # Always update the `updated_at` field – this serves as a "version" marker
+    update_data["updated_at"] = datetime.utcnow()
+    
+    # Apply the update using Beanie's `set` operator
+    await product.set(update_data)
+    
+    # Refresh the document to get the new values
+    await product.fetch()
+    return product
+
+
+@router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_product(
+    product_id: str,
+    admin_user: AdminUser = Depends(require_admin),  # only admins can delete
+):
+    """
+    Soft-delete a product by setting is_active=False.
+    The document remains in the database for audit/restoration.
+    """
+    if not PydanticObjectId.is_valid(product_id):
+        raise HTTPException(status_code=400, detail="Invalid product ID format")
+    
+    product = await Product.get(PydanticObjectId(product_id))
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Soft-delete
+    await product.set({"is_active": False, "updated_at": datetime.utcnow()})
+    return None  # 204 No Content
+
+# New response schemas for aggregation
+class CategoryCount(BaseModel):
+    category: str
+    count: int
+
+class PriceDistribution(BaseModel):
+    label: str          # e.g., "0-25", "25-50"
+    min_price: float
+    max_price: float
+    count: int
+
+@router.get("/analytics/categories", response_model=List[CategoryCount])
+async def get_category_counts():
+    """
+    Aggregation pipeline: Count products per category.
+    Uses MongoDB's $group stage.
+    """
+    pipeline = [
+        {"$match": {"is_active": True}},  # only active products
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},         # most popular first
+    ]
+    # Beanie's aggregate returns an async cursor of dicts
+    cursor = Product.aggregate(pipeline)
+    results = []
+    async for doc in cursor:
+        results.append({"category": doc["_id"], "count": doc["count"]})
+    return results
+
+
+@router.get("/analytics/price-distribution", response_model=List[PriceDistribution])
+async def get_price_distribution(
+    bins: int = Query(5, ge=2, le=20, description="Number of price buckets")
+):
+    """
+    Aggregation pipeline: Bucket active products into price ranges.
+    Uses MongoDB's $bucket stage for histogram-like output.
+    """
+    # 1. Get min and max prices to dynamically calculate bucket boundaries
+    price_range = await Product.aggregate([
+        {"$match": {"is_active": True}},
+        {"$group": {"_id": None, "min": {"$min": "$price"}, "max": {"$max": "$price"}}}
+    ]).to_list()
+    
+    if not price_range:
+        return []  # no products
+    
+    min_price = price_range[0]["min"]
+    max_price = price_range[0]["max"]
+    
+    # If all products have the same price, avoid division by zero
+    if min_price == max_price:
+        return [{"label": f"${min_price:.2f}", "min_price": min_price, "max_price": max_price, "count": await Product.count({"is_active": True})}]
+    
+    # 2. Build the bucket pipeline
+    step = (max_price - min_price) / bins
+    boundaries = [min_price + i * step for i in range(bins + 1)]
+    
+    pipeline = [
+        {"$match": {"is_active": True}},
+        {
+            "$bucket": {
+                "groupBy": "$price",
+                "boundaries": boundaries,
+                "default": "Other",
+                "output": {"count": {"$sum": 1}}
+            }
+        }
+    ]
+    
+    cursor = Product.aggregate(pipeline)
+    results = []
+    async for doc in cursor:
+        if doc["_id"] == "Other":
+            continue  # skip outliers outside our dynamic range
+        # Make a human-readable label
+        label = f"${doc['_id']:.2f} - ${doc['_id'] + step:.2f}"
+        results.append({
+            "label": label,
+            "min_price": doc["_id"],
+            "max_price": doc["_id"] + step,
+            "count": doc["count"]
+        })
+    return results
