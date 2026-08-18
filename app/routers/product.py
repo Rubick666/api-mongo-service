@@ -1,5 +1,3 @@
-# app/routers/product.py
-
 import csv
 import json
 from datetime import datetime, timezone
@@ -640,14 +638,14 @@ async def get_price_distribution(
     # 3. Calculate bucket boundaries
     # --------------------------------------------------------
 
-    step = (
-        max_price - min_price
-    ) / bins
+    step = (max_price - min_price) / bins
 
     boundaries = [
         min_price + i * step
-        for i in range(bins + 1)
+        for i in range(bins)
     ]
+
+    boundaries.append(max_price + 1e-12)
 
     # --------------------------------------------------------
     # 4. MongoDB $bucket aggregation

@@ -1,4 +1,3 @@
-# app/routers/auth.py
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,7 +11,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.core.dependencies import get_current_user  # we'll define this in Part E
+from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 

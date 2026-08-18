@@ -1,4 +1,3 @@
-# app/services/product_service.py
 from app.models.product import Product
 
 async def get_product_by_id(product_id: str) -> Product | None:

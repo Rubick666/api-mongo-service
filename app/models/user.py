@@ -1,5 +1,3 @@
-from typing import Optional
-
 from beanie import Document
 from pydantic import EmailStr, Field
 from pymongo import ASCENDING, IndexModel
