@@ -17,7 +17,7 @@ The default configuration works with Docker Compose.
 
 ## Development
 
-* Run tests with `pytest` (coming soon).
+* Run tests with `pytest`.
 * The code is organized using a modular FastAPI structure:
 
   * `app/routers/`
@@ -88,21 +88,26 @@ curl -X POST http://localhost:8000/auth/login \
 
 ## Feature Checklist
 
-* ✅ JWT authentication with role-based access (`admin` vs `readonly`)
-* ✅ MongoDB schema validation (JSON Schema) at the collection level
-* ✅ Text index and compound indexes, with this README explaining why each exists
-* ✅ Aggregation pipeline endpoints:
+* ✅ **JWT auth with role-based access** – `admin` vs `readonly` (first user is admin).
+* ✅ **MongoDB schema validation** – JSON Schema enforced at the collection level.
+* ✅ **Text + compound indexes** – `text_search`, `category_brand`, `price_asc`, `active_created_desc` – with documentation.
+* ✅ **Aggregation pipeline endpoints** – `/analytics/categories` and `/analytics/price-distribution`.
+* ✅ **Rate limiting** – `5/min` on auth, `100/min` on search, `10/min` on bulk import.
+* ✅ **Comprehensive pytest suite** – runs against a dedicated test database (`catalog_test_db`).
+* ✅ **Bulk import** – streams CSV/JSONL with detailed error reporting and `BulkWriter`.
+* ✅ **Soft-delete & versioning** – `is_active=False` and auto-updated `updated_at`.
 
-  * `/products/analytics/categories`
-  * `/products/analytics/price-distribution`
-* ✅ Rate-limiting middleware:
+## Testing
 
-  * Authentication: 5 requests/minute
-  * Search: 100 requests/minute
-  * Import: 10 requests/minute
-* ✅ `pytest` test suite with a dedicated test database
-* ✅ Bulk import endpoint supporting CSV/JSONL streaming
-* ✅ Soft-delete and versioning with automatic `updated_at` updates
+The service includes a complete integration test suite using `pytest`.
+
+**Requirements:** MongoDB must be running. The `docker-compose.yml` starts MongoDB automatically.
+
+### Run Tests
+
+```bash
+docker-compose exec api pytest tests/ -v
+```
 
 ## API Endpoints
 
