@@ -2,9 +2,7 @@ from fastapi import status
 
 
 def test_register_first_user_becomes_admin(client):
-    """First user should be assigned the admin role."""
-
-    resp = client.post(
+    response = client.post(
         "/auth/register",
         json={
             "email": "first@test.com",
@@ -12,9 +10,9 @@ def test_register_first_user_becomes_admin(client):
         },
     )
 
-    assert resp.status_code == status.HTTP_201_CREATED
+    assert response.status_code == status.HTTP_201_CREATED, response.text
 
-    token = resp.json()["access_token"]
+    token = response.json()["access_token"]
 
     me = client.get(
         "/auth/me",
@@ -28,7 +26,6 @@ def test_register_first_user_becomes_admin(client):
 
 
 def test_register_second_user_becomes_readonly(client):
-
     first = client.post(
         "/auth/register",
         json={
@@ -37,7 +34,7 @@ def test_register_second_user_becomes_readonly(client):
         },
     )
 
-    assert first.status_code == 201
+    assert first.status_code == status.HTTP_201_CREATED, first.text
 
     second = client.post(
         "/auth/register",
@@ -47,7 +44,7 @@ def test_register_second_user_becomes_readonly(client):
         },
     )
 
-    assert second.status_code == 201
+    assert second.status_code == status.HTTP_201_CREATED, second.text
 
     token = second.json()["access_token"]
 
@@ -58,12 +55,11 @@ def test_register_second_user_becomes_readonly(client):
         },
     )
 
-    assert me.status_code == 200
+    assert me.status_code == status.HTTP_200_OK
     assert me.json()["role"] == "readonly"
 
 
 def test_login_success(client):
-
     register = client.post(
         "/auth/register",
         json={
@@ -72,9 +68,9 @@ def test_login_success(client):
         },
     )
 
-    assert register.status_code == 201
+    assert register.status_code == status.HTTP_201_CREATED, register.text
 
-    resp = client.post(
+    response = client.post(
         "/auth/login",
         json={
             "email": "login@test.com",
@@ -82,12 +78,11 @@ def test_login_success(client):
         },
     )
 
-    assert resp.status_code == status.HTTP_200_OK
-    assert "access_token" in resp.json()
+    assert response.status_code == status.HTTP_200_OK
+    assert "access_token" in response.json()
 
 
 def test_login_wrong_password(client):
-
     register = client.post(
         "/auth/register",
         json={
@@ -96,9 +91,9 @@ def test_login_wrong_password(client):
         },
     )
 
-    assert register.status_code == 201
+    assert register.status_code == status.HTTP_201_CREATED, register.text
 
-    resp = client.post(
+    response = client.post(
         "/auth/login",
         json={
             "email": "fail@test.com",
@@ -106,4 +101,4 @@ def test_login_wrong_password(client):
         },
     )
 
-    assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED

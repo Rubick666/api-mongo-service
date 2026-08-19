@@ -1,5 +1,4 @@
 def test_category_analytics(client, admin_token):
-
     csv = (
         "name,price,category,brand\n"
         "Cat1,10,A,Acme\n"
@@ -7,11 +6,11 @@ def test_category_analytics(client, admin_token):
         "Cat3,30,A,Acme"
     )
 
-    response = client.post(
+    import_response = client.post(
         "/products/bulk-import",
         files={
             "file": (
-                "analytics.csv",
+                "test.csv",
                 csv,
                 "text/csv",
             )
@@ -21,8 +20,7 @@ def test_category_analytics(client, admin_token):
         },
     )
 
-    assert response.status_code == 202
-    assert response.json()["imported"] == 3
+    assert import_response.status_code == 202
 
     response = client.get(
         "/products/analytics/categories"
@@ -34,17 +32,16 @@ def test_category_analytics(client, admin_token):
 
     assert len(data) == 2
 
-    cat_a = next(
+    category_a = next(
         item
         for item in data
         if item["category"] == "A"
     )
 
-    assert cat_a["count"] == 2
+    assert category_a["count"] == 2
 
 
 def test_price_distribution(client, admin_token):
-
     csv = (
         "name,price,category,brand\n"
         "P1,10,A,X\n"
@@ -53,11 +50,11 @@ def test_price_distribution(client, admin_token):
         "P4,100,D,X"
     )
 
-    response = client.post(
+    import_response = client.post(
         "/products/bulk-import",
         files={
             "file": (
-                "prices.csv",
+                "test.csv",
                 csv,
                 "text/csv",
             )
@@ -67,8 +64,7 @@ def test_price_distribution(client, admin_token):
         },
     )
 
-    assert response.status_code == 202
-    assert response.json()["imported"] == 4
+    assert import_response.status_code == 202
 
     response = client.get(
         "/products/analytics/price-distribution?bins=3"

@@ -1,4 +1,5 @@
 from typing import Annotated
+import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
@@ -15,6 +16,11 @@ from app.core.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
+def _register_rate_limit(func):
+    if os.getenv("TESTING") == "1":
+        return func
+
+    return limiter.limit("5/minute")(func)
 # ---------- Request/Response Schemas ----------
 class UserRegister(BaseModel):
     email: EmailStr
@@ -32,9 +38,13 @@ class UserResponse(BaseModel):
     email: EmailStr
     role: str
 
+if os.getenv("TESTING") == "1":
+    register_limit = lambda func: func
+else:
+    register_limit = limiter.limit("5/minute")
 # ---------- Endpoints ----------
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-@limiter.limit("5/minute")
+@router.post("/register", status_code=201)
+@_register_rate_limit
 async def register_user(
     request: Request,
     user_data: UserRegister,
